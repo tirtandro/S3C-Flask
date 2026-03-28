@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Murid - S3C{% endblock %}
+{% block content %}
+<div class="hero-banner" style="margin:16px;border-radius:24px;background:linear-gradient(135deg,#1a5c38 0%,#4caf78 100%);padding:24px;color:white;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,0.06);border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-60px;left:40px;width:100px;height:100px;background:rgba(255,255,255,0.04);border-radius:50%;"></div>
+    <div style="font-size:13px;opacity:0.8;margin-bottom:4px;">Hei, Selamat Datang! 👋</div>
+    <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;margin-bottom:8px;">{{ user.name }}</div>
+    <div style="font-size:12px;opacity:0.75;margin-bottom:16px;">{{ user.kelas }}</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <div style="background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);border-radius:20px;padding:8px 16px;display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:14px;">
+            🌟 {{ points }} Poin Hijau
+        </div>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background:#e8f5ee;">🛍️</div>
+        <div class="stat-value">{{ recent_orders|length }}</div>
+        <div class="stat-label">Pesanan Terbaru</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background:#fff8e8;">🌱</div>
+        <div class="stat-value">{{ recent_waste|length }}</div>
+        <div class="stat-label">Waste Log</div>
+    </div>
+</div>
+
+<!-- Level indicator -->
+<div class="section">
+    <div class="card">
+        <div class="card-body" style="padding:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-weight:700;font-size:14px;">Level Eco Warrior</div>
+                <div style="font-size:12px;color:#888;">{{ points }}/100 poin</div>
+            </div>
+            {% set level = 'Pemula 🌱' if points < 30 else ('Penjaga 🌿' if points < 60 else ('Pahlawan 🌳' if points < 100 else 'Legenda 🏆')) %}
+            <div style="font-size:12px;color:#2d8653;font-weight:600;margin-bottom:8px;">{{ level }}</div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width:{{ [points, 100]|min }}%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="section" style="padding-top:0;">
+    <div class="section-title">⚡ Aksi Cepat</div>
+    <div class="grid-2">
+        <a href="{{ url_for('order') }}" style="text-decoration:none;">
+            <div style="background:linear-gradient(135deg,#1a5c38,#2d8653);border-radius:16px;padding:20px;color:white;text-align:center;">
+                <div style="font-size:32px;margin-bottom:8px;">🛒</div>
+                <div style="font-weight:700;font-size:14px;">Pesan Sekarang</div>
+                <div style="font-size:11px;opacity:0.8;margin-top:2px;">Pilih menu favoritmu</div>
+            </div>
+        </a>
+        <a href="{{ url_for('waste_log') }}" style="text-decoration:none;">
+            <div style="background:linear-gradient(135deg,#8b6914,#c4956a);border-radius:16px;padding:20px;color:white;text-align:center;">
+                <div style="font-size:32px;margin-bottom:8px;">🌱</div>
+                <div style="font-weight:700;font-size:14px;">Catat Sisa</div>
+                <div style="font-size:11px;opacity:0.8;margin-top:2px;">+poin untuk kamu!</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Menu Sehat Rekomendasi -->
+<div class="section" style="padding-top:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="section-title" style="margin-bottom:0;">🥗 Menu Sehat Hari Ini</div>
+        <a href="{{ url_for('menu_catalog') }}" style="font-size:12px;color:#2d8653;font-weight:600;text-decoration:none;">Lihat Semua →</a>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        {% for menu in menus[:6] %}
+        <div class="menu-card">
+            <div class="menu-emoji" style="height:64px;font-size:32px;">{{ menu.image_emoji }}</div>
+            <div class="menu-info" style="padding:8px;">
+                <div class="menu-name" style="font-size:12px;">{{ menu.name }}</div>
+                <div class="menu-price" style="font-size:13px;">Rp{{ "{:,.0f}".format(menu.price) }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Orders -->
+{% if recent_orders %}
+<div class="section" style="padding-top:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="section-title" style="margin-bottom:0;">📦 Pesanan Terbaru</div>
+        <a href="{{ url_for('my_orders') }}" style="font-size:12px;color:#2d8653;font-weight:600;text-decoration:none;">Semua →</a>
+    </div>
+    {% for order in recent_orders %}
+    <div class="list-item">
+        <div class="list-icon">🛍️</div>
+        <div style="flex:1;">
+            <div style="font-weight:600;font-size:13px;">Pesanan #{{ order.id }}</div>
+            <div style="font-size:11px;color:#888;">{{ order.created_at | strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-weight:700;font-size:13px;color:#1a5c38;">Rp{{ "{:,.0f}".format(order.total_price) }}</div>
+            <span class="chip chip-{{ order.status }}" style="font-size:10px;">
+                {% if order.status == 'pending' %}⏳ Pending
+                {% elif order.status == 'processing' %}🔄 Diproses
+                {% elif order.status == 'ready' %}✅ Siap
+                {% else %}✔️ Selesai{% endif %}
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Education teaser -->
+<div class="section" style="padding-top:0;padding-bottom:8px;">
+    <div class="card" style="background:linear-gradient(135deg,#e8f5ee,#d4f0e0);border:none;">
+        <div class="card-body" style="padding:20px;">
+            <div style="font-size:32px;margin-bottom:8px;">📚</div>
+            <div style="font-weight:700;font-size:15px;color:#1a5c38;margin-bottom:4px;">Pojok Edukasi</div>
+            <div style="font-size:13px;color:#555;margin-bottom:14px;">Belajar tentang gizi & lingkungan, dan kumpulkan wawasan barumu!</div>
+            <a href="{{ url_for('education') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-book-open"></i> Mulai Belajar
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

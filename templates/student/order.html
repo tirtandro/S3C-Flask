@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Pre-Order - S3C{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-title">🛒 Pre-Order Makanan</div>
+    <div class="page-subtitle">Pilih menu per kantin, pesan sekarang</div>
+</div>
+
+<div class="section">
+{% if menus_by_tenant %}
+    {% for tenant, menus in menus_by_tenant %}
+    <!-- Kantin Header -->
+    <div style="background:linear-gradient(135deg,#1a5c38,#2d8653);border-radius:16px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;color:white;">
+        <div style="font-size:32px;">🍽️</div>
+        <div>
+            <div style="font-weight:800;font-size:16px;">{{ tenant.tenant_name or tenant.name }}</div>
+            <div style="font-size:12px;opacity:.8;">Penyedia: {{ tenant.name }} · {{ menus|length }} menu tersedia</div>
+        </div>
+    </div>
+
+    {% for menu in menus %}
+    <div style="background:white;border-radius:14px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(26,92,56,0.08);">
+        <!-- Foto atau Emoji -->
+        <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;flex-shrink:0;background:#f0f4f1;display:flex;align-items:center;justify-content:center;">
+            {% if menu.image_file %}
+            <img src="{{ url_for('static', filename='uploads/menus/'+menu.image_file) }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ menu.name }}">
+            {% else %}
+            <span style="font-size:32px;">{{ menu.image_emoji }}</span>
+            {% endif %}
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:#1e2a1f;">{{ menu.name }}</div>
+            {% if menu.is_healthy %}<span style="font-size:10px;color:#1a5c38;font-weight:700;">🌿 Sehat</span>{% endif %}
+            <div style="font-size:12px;color:#888;">{{ menu.calories|int }} kal · {{ menu.protein }}g protein</div>
+            <div style="font-weight:800;color:#1a5c38;font-size:15px;">Rp{{ "{:,.0f}".format(menu.price) }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="changeQty({{ menu.id }},{{ menu.price }},-1)" style="width:30px;height:30px;border-radius:8px;border:2px solid #e8ede9;background:white;font-size:18px;font-weight:700;cursor:pointer;color:#555;display:flex;align-items:center;justify-content:center;">−</button>
+            <span id="qty_{{ menu.id }}" style="font-weight:800;font-size:17px;min-width:22px;text-align:center;color:#1a5c38;">0</span>
+            <button onclick="changeQty({{ menu.id }},{{ menu.price }},1)" style="width:30px;height:30px;border-radius:8px;border:none;background:#1a5c38;font-size:18px;font-weight:700;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+    </div>
+    {% endfor %}
+    <div style="height:16px;"></div>
+    {% endfor %}
+{% else %}
+    <div class="empty-state"><i class="fas fa-utensils"></i><p>Belum ada menu tersedia</p></div>
+{% endif %}
+</div>
+
+<!-- Checkout Panel -->
+<div id="checkoutPanel" style="display:none;padding:0 16px 16px;">
+    <div class="card">
+        <div class="card-body">
+            <div style="font-weight:700;font-size:16px;margin-bottom:12px;">📝 Ringkasan Pesanan</div>
+            <div id="orderSummary" style="margin-bottom:14px;"></div>
+            <div class="form-group">
+                <label class="form-label">Catatan (opsional)</label>
+                <textarea id="orderNotes" class="form-control" rows="2" placeholder="Tidak pedas, tambah nasi, dll"></textarea>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:2px solid #f0f4f1;margin-bottom:12px;">
+                <div style="font-weight:700;">Total</div>
+                <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#1a5c38;">Rp<span id="checkoutTotal">0</span></div>
+            </div>
+            <form method="POST" action="{{ url_for('order') }}">
+                <input type="hidden" name="cart" id="cartInput">
+                <input type="hidden" name="notes" id="notesInput">
+                <button type="submit" class="btn btn-primary btn-block btn-lg" onclick="prepareOrder(event)">
+                    <i class="fas fa-paper-plane"></i> Kirim Pesanan
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Float Cart -->
+<div id="floatCart" style="display:none;position:fixed;bottom:90px;right:16px;z-index:90;">
+    <button onclick="toggleCheckout()" style="width:58px;height:58px;border-radius:29px;background:linear-gradient(135deg,#1a5c38,#2d8653);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(26,92,56,0.45);position:relative;">
+        🛒<span id="floatBadge" style="position:absolute;top:-4px;right:-4px;background:#e8a020;color:white;border-radius:10px;padding:2px 6px;font-size:10px;font-weight:800;min-width:18px;text-align:center;"></span>
+    </button>
+</div>
+
+<script>
+let cart={}, prices={}, names={};
+{% for tenant, menus in menus_by_tenant %}{% for menu in menus %}
+prices[{{ menu.id }}]={{ menu.price }};names[{{ menu.id }}]='{{ menu.name|e }}';
+{% endfor %}{% endfor %}
+
+function changeQty(id,price,delta){
+    if(!cart[id])cart[id]=0;
+    cart[id]=Math.max(0,cart[id]+delta);
+    document.getElementById('qty_'+id).textContent=cart[id];
+    if(cart[id]===0)delete cart[id];
+    updateCart();
+}
+function updateCart(){
+    let count=0,total=0;
+    for(let[id,qty]of Object.entries(cart)){count+=qty;total+=prices[id]*qty;}
+    document.getElementById('floatCart').style.display=count>0?'block':'none';
+    document.getElementById('floatBadge').textContent=count||'';
+    document.getElementById('checkoutTotal').textContent=total.toLocaleString('id');
+}
+function toggleCheckout(){
+    const panel=document.getElementById('checkoutPanel');
+    const show=panel.style.display==='none'||!panel.style.display;
+    if(show){
+        let html='';
+        for(let[id,qty]of Object.entries(cart)){
+            html+=`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f4f1;">
+                <span>${qty}× ${names[id]||'Menu'}</span>
+                <span style="font-weight:700;">Rp${(prices[id]*qty).toLocaleString('id')}</span></div>`;
+        }
+        document.getElementById('orderSummary').innerHTML=html||'<p style="color:#aaa;font-size:13px;">Keranjang kosong</p>';
+    }
+    panel.style.display=show?'block':'none';
+    if(show)panel.scrollIntoView({behavior:'smooth'});
+}
+function prepareOrder(e){
+    document.getElementById('cartInput').value=JSON.stringify(Object.entries(cart).map(([id,qty])=>({menu_id:parseInt(id),qty})));
+    document.getElementById('notesInput').value=document.getElementById('orderNotes').value;
+}
+</script>
+{% endblock %}

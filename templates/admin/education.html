@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Kelola Edukasi - S3C{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div class="page-title">📚 Kelola Edukasi</div>
+    <div class="page-subtitle">Publikasikan artikel gizi & lingkungan</div>
+</div>
+
+<!-- Add form -->
+<div class="section">
+    <div class="card">
+        <div class="card-header"><div class="card-title">✍️ Tulis Artikel Baru</div></div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Ikon Artikel</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        {% for em in ['📚','🥗','🌍','💡','🌱','⚗️','🍎','🌅','🏃','🧘','♻️','💧','🌾','🧬','🔬'] %}
+                        <label style="cursor:pointer;">
+                            <input type="radio" name="image_emoji" value="{{ em }}" {% if em == '📚' %}checked{% endif %} style="display:none;" class="emoji-radio">
+                            <div class="emoji-btn" style="width:36px;height:36px;border-radius:8px;border:2px solid #e8ede9;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all 0.2s;{% if em == '📚' %}border-color:#1a5c38;background:#e8f5ee;{% endif %}">{{ em }}</div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Judul Artikel *</label>
+                    <input type="text" name="title" class="form-control" required placeholder="Judul artikel yang menarik...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Kategori *</label>
+                    <select name="category" class="form-control">
+                        <option value="gizi">🥗 Gizi & Nutrisi</option>
+                        <option value="lingkungan">🌍 Lingkungan</option>
+                        <option value="tips">💡 Tips & Trik</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Konten Artikel *</label>
+                    <textarea name="content" class="form-control" rows="8" required placeholder="Tulis konten artikel di sini. Gunakan **teks** untuk bold, dan buat baris baru untuk paragraf..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-paper-plane"></i> Publikasikan Artikel
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Articles list -->
+<div class="section" style="padding-top:0;">
+    <div class="section-title">📖 Artikel Terpublikasi ({{ posts|length }})</div>
+    {% if posts %}
+    {% for post in posts %}
+    <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 2px 8px rgba(26,92,56,0.08);">
+        <div style="width:48px;height:48px;border-radius:12px;background:#f0f4f1;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">{{ post.image_emoji }}</div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:13px;color:#1e2a1f;margin-bottom:3px;">{{ post.title }}</div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;
+                    {% if post.category == 'gizi' %}background:#e8f5ee;color:#1a5c38;
+                    {% elif post.category == 'lingkungan' %}background:#e8f0fe;color:#1a56c4;
+                    {% else %}background:#fff8e8;color:#8b6914;{% endif %}">
+                    {% if post.category == 'gizi' %}🥗 Gizi{% elif post.category == 'lingkungan' %}🌍 Lingkungan{% else %}💡 Tips{% endif %}
+                </span>
+                <span style="font-size:11px;color:#aaa;">{{ post.created_at | strftime('%d %b %Y') }}</span>
+            </div>
+        </div>
+        <form method="POST" action="{{ url_for('admin_delete_education', post_id=post.id) }}" onsubmit="return confirm('Hapus artikel ini?')">
+            <button type="submit" class="btn btn-danger btn-sm" style="padding:6px 10px;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><i class="fas fa-book-open"></i><p>Belum ada artikel</p></div>
+    {% endif %}
+</div>
+
+<script>
+document.querySelectorAll('.emoji-radio').forEach(r => {
+    r.addEventListener('change', function() {
+        document.querySelectorAll('.emoji-btn').forEach(b => { b.style.borderColor = '#e8ede9'; b.style.background = 'white'; });
+        this.nextElementSibling.style.borderColor = '#1a5c38';
+        this.nextElementSibling.style.background = '#e8f5ee';
+    });
+});
+</script>
+{% endblock %}

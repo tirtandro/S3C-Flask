@@ -112,6 +112,13 @@
                 <div class="quest-prog">Pesan menu ≥ 80g karbo</div>
                 <div class="quest-bar"><div class="quest-fill" style="width:0%;background:linear-gradient(90deg,#fac775,#ba7517);"></div></div>
             </div>
+            <!-- Lemak -->
+            <div class="quest-card">
+                <div class="quest-icon">🥑</div>
+                <div class="quest-name">Lemak Sehat</div>
+                <div class="quest-prog">Pesan menu ≥ 10g lemak</div>
+                <div class="quest-bar"><div class="quest-fill" style="width:0%;background:linear-gradient(90deg,#f4a261,#e76f51);"></div></div>
+            </div>
             <!-- Serat -->
             <div class="quest-card">
                 <div class="quest-icon">🌿</div>
@@ -175,7 +182,7 @@
             <div class="mini-menu-card">
                 <div class="mini-menu-img">
                     {% if menu.image_file %}
-                    <img src="{{ url_for('static',filename='uploads/menus/'+menu.image_file) }}" alt="{{ menu.name }}">
+                    <img src="{{ menu.image_file }}" alt="{{ menu.name }}">
                     {% else %}
                     <span style="font-size:30px;">{{ menu.image_emoji }}</span>
                     {% endif %}

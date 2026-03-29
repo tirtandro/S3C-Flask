@@ -35,10 +35,11 @@
     <div style="font-size:13px;color:#888;margin-bottom:12px;">{{ menus|length }} menu ditemukan</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         {% for menu in menus %}
-        <div class="menu-card" onclick="showMenuDetail('{{ menu.name|e }}','{{ menu.image_emoji }}',{{ menu.price }},'{{ (menu.tenant_name or menu.tname or '')|e }}',{{ menu.calories }},{{ menu.protein }},{{ menu.carbs }},{{ menu.fat }},{{ menu.fiber }},{{ 'true' if menu.is_healthy else 'false' }},'{{ (menu.description or '')|e|replace("'","\\'")|replace('\n',' ') }}','{{ menu.image_file or '' }}')">
+        <div class="menu-card" onclick="showMenuDetail('{{ menu.name|e }}','{{ menu.image_emoji }}',{{ menu.price }},'{{ (menu.tenant_name or menu.tname or '')|e }}',{{ menu.calories }},{{ menu.protein }},{{ menu.carbs }},{{ menu.fat }},{{ menu.fiber }},{{ 'true' if menu.is_healthy else 'false' }},'{{ (menu.description or '')|e|replace("'","\\'")|replace('\n',' ') }}','{{ 'has_img' if menu.image_file else '' }}')"
+             data-img-src="{% if menu.image_file %}{{ menu.image_file }}{% endif %}">
             <div class="menu-emoji" style="padding:0;overflow:hidden;">
                 {% if menu.image_file %}
-                <img src="{{ url_for('static',filename='uploads/menus/'+menu.image_file) }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ menu.name }}">
+                <img src="{{ menu.image_file }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ menu.name }}">
                 {% else %}
                 <span style="font-size:38px;display:flex;align-items:center;justify-content:center;height:100%;">{{ menu.image_emoji }}</span>
                 {% endif %}
@@ -85,8 +86,21 @@
 </div>
 
 <script>
-function showMenuDetail(name,emoji,price,tenant,cal,prot,carbs,fat,fiber,healthy,desc) {
-    document.getElementById('mEmoji').textContent=emoji;
+function showMenuDetail(name,emoji,price,tenant,cal,prot,carbs,fat,fiber,healthy,desc,hasImg) {
+    // Grab the data-img-src from the clicked card
+    const cards = document.querySelectorAll('[data-img-src]');
+    let imgSrc = '';
+    cards.forEach(c => { if(c.querySelector && c.querySelector('.menu-emoji img')) {
+        const nm = c.querySelector('.menu-name');
+        if(nm && nm.textContent.trim() === name) imgSrc = c.getAttribute('data-img-src');
+    }});
+    // Modal image area
+    const emojiEl = document.getElementById('mEmoji');
+    if(imgSrc) {
+        emojiEl.innerHTML = `<img src="${imgSrc}" style="width:100%;max-height:200px;object-fit:cover;border-radius:14px;">` ;
+    } else {
+        emojiEl.textContent = emoji;
+    }
     document.getElementById('mName').textContent=name;
     document.getElementById('mTenant').textContent=tenant;
     document.getElementById('mDesc').textContent=desc||'';

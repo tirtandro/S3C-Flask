@@ -18,7 +18,7 @@
             <label class="form-label">📷 Foto Produk</label>
             <div id="photoPreviewWrap" style="margin-bottom:10px;{% if not item or not item.image_file %}display:none;{% endif %}">
                 <div style="width:120px;height:120px;border-radius:14px;overflow:hidden;border:2px solid #e8ede9;position:relative;">
-                    <img id="photoPreview" src="{% if item and item.image_file %}{{ url_for('static',filename='uploads/marketplace/'+item.image_file) }}{% endif %}" style="width:100%;height:100%;object-fit:cover;" alt="Preview">
+                    <img id="photoPreview" src="{% if item and item.image_file %}{{ item.image_file }}{% endif %}" style="width:100%;height:100%;object-fit:cover;" alt="Preview">
                     <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.45);color:white;font-size:10px;text-align:center;padding:3px;">Foto saat ini</div>
                 </div>
             </div>

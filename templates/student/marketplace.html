@@ -128,11 +128,11 @@
             '{{ item.unit }}',
             {{ item.stock }},
             '{{ item.image_emoji }}',
-            '{% if item.image_file %}{{ url_for("static", filename="uploads/marketplace/"+item.image_file) }}{% endif %}'
+            '{% if item.image_file %}{{ item.image_file }}{% endif %}'
         )">
             <div class="mp-img">
                 {% if item.image_file %}
-                <img src="{{ url_for('static',filename='uploads/marketplace/'+item.image_file) }}" alt="{{ item.name }}">
+                <img src="{{ item.image_file }}" alt="{{ item.name }}">
                 {% else %}
                 <span class="mp-img-emoji">{{ item.image_emoji }}</span>
                 {% endif %}

@@ -1,7 +1,24 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, send_from_directory
-import sqlite3, json, hashlib, os, re, uuid
-from datetime import datetime, date, timedelta
+import sqlite3, json, hashlib, os, re, uuid, base64
+from datetime import datetime, date, timedelta, timezone, time as dtime
+
 from werkzeug.utils import secure_filename
+
+# ── Timezone WIB (UTC+7) ──────────────────────────────────────────────────────
+WIB = timezone(timedelta(hours=7))
+
+def now_wib():
+    """Return current datetime in WIB (UTC+7)."""
+    return datetime.now(WIB)
+
+def today_wib():
+    """Return current date string (YYYY-MM-DD) in WIB."""
+    return now_wib().strftime('%Y-%m-%d')
+
+def wib_str():
+    """Return current WIB datetime as SQLite-compatible string."""
+    return now_wib().strftime('%Y-%m-%d %H:%M:%S')
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'S3C-SmartSustainableSchoolCanteen-2024'
@@ -9,11 +26,7 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload
 
 BASE_DIR   = os.path.dirname(__file__)
 DATABASE   = os.path.join(BASE_DIR, 'instance', 's3c.db')
-UPLOAD_DIR = os.path.join(BASE_DIR, 'static', 'uploads')
 os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_DIR, 'menus'),       exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_DIR, 'marketplace'),  exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_DIR, 'users'),        exist_ok=True)
 
 ALLOWED_EXT = {'png','jpg','jpeg','gif','webp'}
 
@@ -51,8 +64,9 @@ def get_points(uid):
 def allowed_file(fname):
     return '.' in fname and fname.rsplit('.',1)[1].lower() in ALLOWED_EXT
 
-def save_upload(file_obj, folder):
-    """Save uploaded image, return filename or None."""
+def save_upload(file_obj, folder=None):
+    """Convert uploaded image to base64 data-URI string for DB storage.
+    Works on Railway (ephemeral filesystem) because data lives in DB."""
     if not file_obj or file_obj.filename == '': return None
     if not allowed_file(file_obj.filename): return None
     try:
@@ -60,22 +74,19 @@ def save_upload(file_obj, folder):
         import io
         img = Image.open(file_obj.stream)
         img = img.convert('RGB')
-        # Resize max 800px
+        # Resize max 800px to keep DB size reasonable
         img.thumbnail((800, 800), Image.LANCZOS)
-        ext = 'jpg'
-        fname = f"{uuid.uuid4().hex}.{ext}"
-        save_path = os.path.join(UPLOAD_DIR, folder, fname)
-        img.save(save_path, 'JPEG', quality=85, optimize=True)
-        return fname
+        buf = io.BytesIO()
+        img.save(buf, 'JPEG', quality=82, optimize=True)
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+        return f"data:image/jpeg;base64,{b64}"
     except Exception as e:
         print(f"Upload error: {e}")
         return None
 
 def delete_upload(folder, fname):
-    if fname:
-        path = os.path.join(UPLOAD_DIR, folder, fname)
-        if os.path.exists(path):
-            os.remove(path)
+    """No-op: images now stored as base64 in DB, nothing to delete on disk."""
+    pass
 
 # ── DB init & seed ─────────────────────────────────────────────────────────
 
@@ -157,8 +168,8 @@ def init_db():
         ('Admin S3C','admin',hash_pw('admin123'),'admin',None,None),
         ('Bu Sari','tenant1',hash_pw('tenant123'),'tenant',None,'Warung Sehat Bu Sari'),
         ('Pak Budi','tenant2',hash_pw('tenant123'),'tenant',None,'Kantin Pak Budi'),
-        ('Andi Pratama','andi',hash_pw('student123'),'student','XII IPA 1',None),
-        ('Siti Rahayu','siti',hash_pw('student123'),'student','XI IPS 2',None),
+        ('Andi Pratama','andi',hash_pw('student123'),'student','XII A',None),
+        ('Siti Rahayu','siti',hash_pw('student123'),'student','XI B',None),
     ]
     for u in users:
         db.execute('INSERT INTO users (name,username,password,role,kelas,tenant_name) VALUES (?,?,?,?,?,?)', u)
@@ -232,6 +243,7 @@ def migrate_db():
     db.row_factory = sqlite3.Row
 
     # List of (table, column, definition) to add if missing
+    # image_file columns now store base64 data-URIs (Railway-safe)
     migrations = [
         ('menus',             'image_file',  'TEXT'),
         ('marketplace_items', 'image_file',  'TEXT'),
@@ -264,11 +276,16 @@ def migrate_db():
 # ── Jinja filters ─────────────────────────────────────────────────────────────
 
 @app.template_filter('strftime')
-def strftime_filter(s, fmt='%d %b %Y'):
+def strftime_filter(s, fmt='%d %b %Y %H:%M'):
+    """Parse stored UTC string and display as WIB (UTC+7)."""
     if not s: return ''
-    try:    return datetime.strptime(s[:19],'%Y-%m-%d %H:%M:%S').strftime(fmt)
+    try:
+        # Parse as naive UTC then convert to WIB
+        dt_utc = datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+        dt_wib = dt_utc.astimezone(WIB)
+        return dt_wib.strftime(fmt)
     except:
-        try: return datetime.strptime(s[:10],'%Y-%m-%d').strftime(fmt)
+        try: return datetime.strptime(s[:10], '%Y-%m-%d').strftime('%d %b %Y')
         except: return s
 
 @app.template_filter('fmt_price')
@@ -332,7 +349,7 @@ def dashboard():
     elif role == 'tenant':
         mc  = query_db('SELECT COUNT(*) as c FROM menus WHERE tenant_id=?',[user['id']],one=True)['c']
         pc  = query_db("SELECT COUNT(*) as c FROM orders WHERE tenant_id=? AND status='pending'",[user['id']],one=True)['c']
-        today_orders  = query_db("SELECT * FROM orders WHERE tenant_id=? AND date(created_at)=date('now')",[user['id']])
+        today_orders  = query_db("SELECT * FROM orders WHERE tenant_id=? AND date(datetime(created_at,'+7 hours'))=?",[user['id'], today_wib()])
         today_revenue = sum(o['total_price'] for o in today_orders)
         recent_orders = query_db('''SELECT o.*,u.name as student_name,u.kelas FROM orders o
             JOIN users u ON o.student_id=u.id WHERE o.tenant_id=? ORDER BY o.created_at DESC LIMIT 5''',[user['id']])
@@ -539,10 +556,11 @@ def admin_analytics():
     waste_stats  = query_db("SELECT waste_level,COUNT(*) as cnt FROM waste_logs GROUP BY waste_level")
     waste_data   = {w['waste_level']:w['cnt'] for w in waste_stats}
     order_trend  = []
+    wib_today = now_wib().date()
     for i in range(6,-1,-1):
-        d     = (date.today()-timedelta(days=i)).strftime('%Y-%m-%d')
-        count = query_db("SELECT COUNT(*) as c FROM orders WHERE date(created_at)=?",[d],one=True)['c']
-        order_trend.append({'date':(date.today()-timedelta(days=i)).strftime('%d/%m'),'count':count})
+        d     = (wib_today - timedelta(days=i)).strftime('%Y-%m-%d')
+        count = query_db("SELECT COUNT(*) as c FROM orders WHERE date(datetime(created_at,'+7 hours'))=?",[d],one=True)['c']
+        order_trend.append({'date':(wib_today - timedelta(days=i)).strftime('%d/%m'),'count':count})
     top_menus = query_db('''SELECT m.name,m.image_emoji,SUM(oi.quantity) as total FROM menus m
         JOIN order_items oi ON m.id=oi.menu_id GROUP BY m.id ORDER BY total DESC LIMIT 8''')
     hc = query_db("SELECT COUNT(*) as c FROM menus WHERE is_healthy=1 AND is_available=1",one=True)['c']
